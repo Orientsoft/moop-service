@@ -1,7 +1,9 @@
 # jupyterhub-launcher-service
+
 Extended launcher service for jupyterhub, to start container with run-time parameters.  
 
 ## jupyterhub config
+
 add the following spawner wrapper code to your jupyterhub ```config.yaml```:  
 
 ```yaml
@@ -46,6 +48,7 @@ hub:
 ```
 
 ## envs
+
 default ```env.sh```:  
 
 ```sh
@@ -76,6 +79,7 @@ FLASK_APP=./launcher-service.py flask run -h 0.0.0.0 -p 5000
 ```
 
 ## API
+
 Launcher Service extends the following HTTP **POST** API to jupyterhub services path:  
 
 ```
@@ -102,6 +106,7 @@ Submit run-time parameters in request.body - **image, username, server_name and 
     ]
 }
 ```
+
 server_name could be omitted, if you don't need named server. By default, we only allow a user to start an unnamed server.  
   
 The request should be finished in tens of seconds, so you might want to set a long timeout to your http client.  
@@ -133,7 +138,9 @@ If container starts successfully, notebook endpoint url and other info will be r
 ```
 
 ## notebook endpoint
+
 Just concat url and token returned from the API to create notebook endpoint for direct access:  
+
 ```py
 # eg. http://192.168.0.31:30711/user/voyager/?token=be6ac9cb7581421da30d6a16339eaf91
 endpoint = '{}/?token={}'.format(resp.url, resp.token)
