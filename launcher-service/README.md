@@ -83,7 +83,7 @@ FLASK_APP=./launcher-service.py flask run -h 0.0.0.0 -p 5000
 Launcher Service extends the following HTTP **POST** API to jupyterhub services path:  
 
 ```
-POST http://192.168.0.31:30711/services/launcher/launch
+POST http://192.168.0.31:30711/services/launcher/containers
 ```
 
 Submit run-time parameters in request.body - **image, username, server_name and volume parameters are supported**:  

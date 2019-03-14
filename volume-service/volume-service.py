@@ -23,7 +23,7 @@ NFS_PREFIX = os.environ.get('NFS_PREFIX', '/').strip()
 
 # consts
 SERVICE_PREFIX = '/volumes'
-API_VERSION = 'services/api/v1'
+API_VERSION = 'service/v1'
 
 # logger
 LOG_NAME = 'Volume-Service'

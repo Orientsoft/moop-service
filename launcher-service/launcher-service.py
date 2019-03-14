@@ -109,7 +109,7 @@ def get_launch_params(f):
 
     return decorated
 
-@app.route('{}{}'.format(service_prefix, 'launch'), methods=['POST'])
+@app.route('{}{}'.format(service_prefix, 'containers'), methods=['POST'])
 @get_launch_params
 def launch(image, username, server_name='', volumes=None, volume_mounts=None):
     try:
@@ -120,7 +120,7 @@ def launch(image, username, server_name='', volumes=None, volume_mounts=None):
         if server_name == '':
             user_data = request_api(session, 'users/{}'.format(username)).json()
 
-            if server_name in user_data['servers']:
+            if server_name in user_data['servers'].keys():
                 return Response(
                     json.dumps(
                         {'error': '{} already has a running server'.format(username)},
@@ -227,3 +227,107 @@ def launch(image, username, server_name='', volumes=None, volume_mounts=None):
             status=500,
             mimetype='application/json'
         )
+
+@app.route('{}{}'.format(service_prefix, 'containers'), methods=['GET'])
+def read_container():
+    try:
+        body = request.get_json()
+
+        if 'username' not in body.keys():
+            return Response(
+                json.dumps({'error': 'no username parameter specified'}, indent=1, sort_keys=True),
+                mimetype='application/json',
+            )
+        username = body['username']
+        server_name = body['server_name'] if 'server_name' in body.keys() else ''
+
+        user_data = request_api(session, 'users/{}'.format(username)).json()
+
+        if server_name in user_data['servers'].keys():
+            return Response(
+                json.dumps(user_data['servers'][server_name], indent=1, sort_keys=True),
+                mimetype='application/json',
+            )
+        else:
+            return Response(
+                json.dumps({'error': 'no server {}/{} found'.format(username, server_name)}, indent=1, sort_keys=True),
+                mimetype='application/json',
+                status=400
+            )
+    except requests.exceptions.RequestException as e:
+        # there might be something wrong with jupyterhub or network
+        logger.error('Request Error: {}\nStack: {}\n'.format(e, traceback.format_exc()))
+        return Response(
+                json.dumps(
+                    {'error': 'Request to jupyterhub API failed.'},
+                    indent=1,
+                    sort_keys=True
+                ),
+                status=500,
+                mimetype='application/json'
+            )
+    except Exception as e:
+        # this might be a bug
+        logger.critical('Program Error: {}\nStack: {}\n'.format(e, traceback.format_exc()))
+        return Response(
+            json.dumps(
+                {'error': 'Launcher service failed.'},
+                indent=1,
+                sort_keys=True
+            ),
+            status=500,
+            mimetype='application/json'
+        )
+
+@app.route('{}{}'.format(service_prefix, 'containers'), methods=['GET'])
+def read_container():
+    try:
+        body = request.get_json()
+
+        if 'username' not in body.keys():
+            return Response(
+                json.dumps({'error': 'no username parameter specified'}, indent=1, sort_keys=True),
+                mimetype='application/json',
+            )
+        username = body['username']
+        server_name = body['server_name'] if 'server_name' in body.keys() else ''
+
+        # TODO : delete
+        user_data = request_api(session, 'users/{}'.format(username)).json()
+
+        if server_name in user_data['servers'].keys():
+            return Response(
+                json.dumps(user_data['servers'][server_name], indent=1, sort_keys=True),
+                mimetype='application/json',
+            )
+        else:
+            return Response(
+                json.dumps({'error': 'no server {}/{} found'.format(username, server_name)}, indent=1, sort_keys=True),
+                mimetype='application/json',
+                status=400
+            )
+    except requests.exceptions.RequestException as e:
+        # there might be something wrong with jupyterhub or network
+        logger.error('Request Error: {}\nStack: {}\n'.format(e, traceback.format_exc()))
+        return Response(
+            json.dumps(
+                {'error': 'Request to jupyterhub API failed.'},
+                indent=1,
+                sort_keys=True
+            ),
+            status=500,
+            mimetype='application/json'
+        )
+    except Exception as e:
+        # this might be a bug
+        logger.critical('Program Error: {}\nStack: {}\n'.format(e, traceback.format_exc()))
+        return Response(
+            json.dumps(
+                {'error': 'Launcher service failed.'},
+                indent=1,
+                sort_keys=True
+            ),
+            status=500,
+            mimetype='application/json'
+        )
+        
