@@ -73,6 +73,13 @@ def request_api(session, url, *args, method='get', **kwargs):
             timeout=REQUEST_TIMEOUT,
             **kwargs
         )
+    elif method == 'delete':
+        resp = session.delete(
+            '{}/{}'.format(hub_api_url, url),
+            headers=headers,
+            timeout=REQUEST_TIMEOUT,
+            **kwargs
+        )
 
     resp.raise_for_status()
 
@@ -279,7 +286,7 @@ def read_container():
             mimetype='application/json'
         )
 
-@app.route('{}{}'.format(service_prefix, 'containers'), methods=['GET'])
+@app.route('{}{}'.format(service_prefix, 'containers'), methods=['DELETE'])
 def read_container():
     try:
         body = request.get_json()
@@ -292,20 +299,23 @@ def read_container():
         username = body['username']
         server_name = body['server_name'] if 'server_name' in body.keys() else ''
 
-        # TODO : delete
-        user_data = request_api(session, 'users/{}'.format(username)).json()
+        if server_name == '':
+            server_resp = request_api(session, 'users/{}/server'.format(username), method='delete')
+        else:
+            server_resp = request_api(session, 'users/{}/server/{}'.format(username, server_name), method='delete')
 
-        if server_name in user_data['servers'].keys():
-            return Response(
-                json.dumps(user_data['servers'][server_name], indent=1, sort_keys=True),
-                mimetype='application/json',
-            )
+        if server_resp.status_code == 200:
+            return Response(status=200)
         else:
             return Response(
-                json.dumps({'error': 'no server {}/{} found'.format(username, server_name)}, indent=1, sort_keys=True),
-                mimetype='application/json',
-                status=400
-            )
+            json.dumps(
+                {'error': 'Request to jupyterhub API failed.'},
+                indent=1,
+                sort_keys=True
+            ),
+            status=400,
+            mimetype='application/json'
+        )
     except requests.exceptions.RequestException as e:
         # there might be something wrong with jupyterhub or network
         logger.error('Request Error: {}\nStack: {}\n'.format(e, traceback.format_exc()))
