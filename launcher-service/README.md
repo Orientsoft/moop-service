@@ -137,6 +137,40 @@ If container starts successfully, notebook endpoint url and other info will be r
 }
 ```
 
+To get server status of a user:  
+
+```
+GET http://192.168.0.31:30711/services/launcher/containers?username=voyager
+```
+
+Returns:  
+
+```js
+{
+    "last_activity": "2019-03-15T03:01:17.012565Z",
+    "name": "",
+    "pending": null,
+    "progress_url": "/hub/api/users/voyager/server/progress",
+    "ready": true,
+    "started": "2019-03-15T03:01:17.012565Z",
+    "state": {
+        "pod_name": "jupyter-voyager"
+    },
+    "url": "/user/voyager/"
+}
+```
+
+If no server could be found for specified user, 400 status code will be returned.  
+
+To shutdown server:  
+
+```
+DELETE http://192.168.0.31:30711/services/launcher/containers?username=voyager
+```
+
+Returns empty body if successed.  
+400 status code will be returned if no server could be found.
+
 ## notebook endpoint
 
 Just concat url and token returned from the API to create notebook endpoint for direct access:  

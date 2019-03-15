@@ -238,7 +238,8 @@ def launch(image, username, server_name='', volumes=None, volume_mounts=None):
 @app.route('{}{}'.format(service_prefix, 'containers'), methods=['GET'])
 def read_container():
     try:
-        body = request.get_json()
+        session = requests.Session()
+        body = request.args
 
         if 'username' not in body.keys():
             return Response(
@@ -257,7 +258,7 @@ def read_container():
             )
         else:
             return Response(
-                json.dumps({'error': 'no server {}/{} found'.format(username, server_name)}, indent=1, sort_keys=True),
+                json.dumps({'error': 'no server /user/{}/server/{} found'.format(username, server_name)}, indent=1, sort_keys=True),
                 mimetype='application/json',
                 status=400
             )
@@ -287,9 +288,10 @@ def read_container():
         )
 
 @app.route('{}{}'.format(service_prefix, 'containers'), methods=['DELETE'])
-def read_container():
+def remove_container():
     try:
-        body = request.get_json()
+        session = requests.Session()
+        body = request.args
 
         if 'username' not in body.keys():
             return Response(
@@ -304,21 +306,10 @@ def read_container():
         else:
             server_resp = request_api(session, 'users/{}/server/{}'.format(username, server_name), method='delete')
 
-        if server_resp.status_code == 200:
-            return Response(status=200)
-        else:
-            return Response(
-            json.dumps(
-                {'error': 'Request to jupyterhub API failed.'},
-                indent=1,
-                sort_keys=True
-            ),
-            status=400,
-            mimetype='application/json'
-        )
+        return Response(status=200)
     except requests.exceptions.RequestException as e:
         # there might be something wrong with jupyterhub or network
-        logger.error('Request Error: {}\nStack: {}\n'.format(e, traceback.format_exc()))
+        logger.error('222Request Error: {}\nStack: {}\n'.format(e, traceback.format_exc()))
         return Response(
             json.dumps(
                 {'error': 'Request to jupyterhub API failed.'},
