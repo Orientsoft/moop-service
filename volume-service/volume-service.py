@@ -7,6 +7,7 @@ import os
 import logging
 import logging.handlers
 import sys
+import datetime
 
 from kubernetes import config
 import kubernetes.client
@@ -42,6 +43,11 @@ def setup_logger(level):
 
 logger = setup_logger(int(LOG_LEVEL))
 
+# helper
+def datetime_convertor(o):
+    if isinstance(o, datetime.datetime):
+        return o.__str__()
+
 # load kube config from .kube
 config.load_kube_config()
 
@@ -52,52 +58,53 @@ app = Flask(__name__)
 
 def create_body(f):
     @wraps(f)
-    def decorated(type, *args, **kwargs):
+    def decorated(*args, **kwargs):
         # parameters
         req_body = request.get_json()
 
-        if 'tenant' not in body.keys():
+        if 'tenant' not in req_body.keys():
             return Response(
                 json.dumps({'error': 'no tenant parameter specified'}, indent=1, sort_keys=True),
                 mimetype='application/json',
             )
-        if 'username' not in body.keys():
+        if 'username' not in req_body.keys():
             return Response(
                 json.dumps({'error': 'no username parameter specified'}, indent=1, sort_keys=True),
                 mimetype='application/json',
             )
+        tag = req_body['tag'] if 'tag' in req_body.keys() else 'default'
 
         # read templates from tenant service
-        tenant_resp = requests.get('{}/{}'.format(TENANT_SERVICE_URL, req_body.tenant))
+        tenant_resp = requests.get('{}/{}'.format(TENANT_SERVICE_URL, req_body['tenant']))
         if tenant_resp.status_code != 200:
-            logger.error('Request Error: {}\nStack: {}\n'.format(tenant_resp.json(), trackback.format_exc()))
+            logger.error('Request Error: {}\nStack: {}\n'.format(tenant_resp.json(), traceback.format_exc()))
             return Response(
                 json.dumps({'error': 'tenant service returned failure'}, indent=1, sort_keys=True),
                 mimetype='application/json',
             )
 
-        templates = tenant_resp.json().resources.templates
+        tenant = tenant_resp.json()
+        templates = tenant['resources']['templates']
 
-        # TODO : get request resource type
+        # get request resource type
         url_array = request.url.strip('/').split('/')
         resource_type = url_array[-1]
-        print(resource_type)
 
         # create body
         if resource_type == 'pvs':
             body = templates['pv']
 
-            body.metadata.name.format(req_body.tenant, req_body.username)
-            body.metadata.namespace.format(tenant.name)
-            body.metadata.labels.pv.format(req_body.tenant, req_body.username)
-            body.spec.nfs.server.format(NFS_SERVER)
-            body.spec.nfs.path.format(NFS_PREFIX, req_body.tenant, req_body.username)
+            body['metadata']['name'] = body['metadata']['name'].format(req_body['tenant'], req_body['username'], tag)
+            body['metadata']['namespace'] = body['metadata']['namespace'].format(req_body['tenant'])
+            body['metadata']['labels']['pv'] = body['metadata']['labels']['pv'].format(req_body['tenant'], req_body['username'], tag)
+            body['spec']['nfs']['server'] = body['spec']['nfs']['server'].format(NFS_SERVER)
+            body['spec']['nfs']['path'] = body['spec']['nfs']['path'].format(NFS_PREFIX, req_body['tenant'], req_body['username'], tag)
         else:
             body = templates['pvc']
 
-            body.metadata.name.format(req_body.tenant, req_body.username)
-            body.metadata.namespace.format(tenant.name)
-            body.spec.selector.matchLabels.pv.format(req_body.tenant, req_body.username)
+            body['metadata']['name'] = body['metadata']['name'].format(req_body['tenant'], req_body['username'], tag)
+            body['metadata']['namespace'] = body['metadata']['namespace'].format(req_body['tenant'])
+            body['spec']['selector']['matchLabels']['pv'] = body['spec']['selector']['matchLabels']['pv'].format(req_body['tenant'], req_body['username'], tag)
 
         return f(
             body,
@@ -110,7 +117,7 @@ def create_body(f):
 def get_params(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        params = request.args()
+        params = request.args.to_dict()
 
         if 'tenant' not in params.keys():
             return Response(
@@ -122,19 +129,21 @@ def get_params(f):
                 json.dumps({'error': 'no username parameter specified'}, indent=1, sort_keys=True),
                 mimetype='application/json',
             )
+        tag = params['tag'] if 'tag' in params.keys() else 'default'
 
         # read name from tenant service
-        tenant_resp = requests.get('{}/{}'.format(TENANT_SERVICE_URL, params.tenant))
+        tenant_resp = requests.get('{}/{}'.format(TENANT_SERVICE_URL, params['tenant']))
         if tenant_resp.status_code != 200:
-            logger.error('Request Error: {}\nStack: {}\n'.format(tenant_resp.json(), trackback.format_exc()))
+            logger.error('Request Error: {}\nStack: {}\n'.format(tenant_resp, traceback.format_exc()))
             return Response(
                 json.dumps({'error': 'tenant service returned failure'}, indent=1, sort_keys=True),
                 mimetype='application/json',
             )
 
         return f(
-            tenant,
-            username,
+            params['tenant'],
+            params['username'],
+            tag,
             *args,
             tenant_name=tenant_resp.json()['name'],
             **kwargs
@@ -143,7 +152,7 @@ def get_params(f):
     return decorated
 
 # POST /pvs
-@app.route('/{}{}/pvs'.format(API_VERSION, SERVICE_PREFIX), methods['POST'])
+@app.route('/{}{}/pvs'.format(API_VERSION, SERVICE_PREFIX), methods=['POST'])
 @create_body
 def create_pv(body):
     try:
@@ -156,65 +165,104 @@ def create_pv(body):
             pretty=pretty
         )
 
-        return Resopnse(
-            json.dumps(pv, indent=1, sort_keys=True),
+        return Response(
+            json.dumps(pv, default=datetime_convertor, indent=1, sort_keys=True),
             mimetype='application/json'
         )
     except ApiException as e:
-        logger.error('Request Error: {}\nStack: {}\n'.format(e, trackback.format_exc()))
+        logger.error('Request Error: {}\nStack: {}\n'.format(e, traceback.format_exc()))
         return Response(
             json.dumps({'error': 'Kubernetes API request failed'}, indent=1, sort_keys=True),
             mimetype='application/json',
+            status=400
+        )
+    except Exception as e:
+        # this might be a bug
+        logger.critical('Program Error: {}\nStack: {}\n'.format(e, traceback.format_exc()))
+        return Response(
+            json.dumps(
+                {'error': 'Volume service failed.'},
+                indent=1,
+                sort_keys=True
+            ),
+            status=500,
+            mimetype='application/json'
         )
 
 # GET /pvs
 @app.route('/{}{}/pvs'.format(API_VERSION, SERVICE_PREFIX), methods=['GET'])
 @get_params
-def read_pv(tenant, username):
+def read_pv(tenant, username, tag, tenant_name=None):
     try:
-        pv_name = 'pv-{}-{}'.format(tenant, username)
+        pv_name = 'pv-{}-{}-{}'.format(tenant, username, tag)
         pretty = 'true'
         exact = True
 
+        ''' pv_status contains pv
         pv = api_instance.read_persistent_volume(
             pv_name,
             pretty=pretty,
             exact=exact
-        )
+        ).to_dict()
+        '''
 
         pv_status = api_instance.read_persistent_volume_status(
             pv_name,
             pretty=pretty
-        )
+        ).to_dict()
 
-        pv['status'] = pv_status
-
-        return Resopnse(
-            json.dumps(pv, indent=1, sort_keys=True),
+        return Response(
+            json.dumps(pv_status, default=datetime_convertor, indent=1, sort_keys=True),
             mimetype='application/json'
         )
     except ApiException as e:
-        logger.error('Request Error: {}\nStack: {}\n'.format(e, trackback.format_exc()))
+        logger.error('Request Error: {}\nStack: {}\n'.format(e, traceback.format_exc()))
         return Response(
             json.dumps({'error': 'Kubernetes API request failed'}, indent=1, sort_keys=True),
             mimetype='application/json',
+            status=400
+        )
+    except Exception as e:
+        # this might be a bug
+        logger.critical('Program Error: {}\nStack: {}\n'.format(e, traceback.format_exc()))
+        return Response(
+            json.dumps(
+                {'error': 'Volume service failed.'},
+                indent=1,
+                sort_keys=True
+            ),
+            status=500,
+            mimetype='application/json'
         )
 
 # DELETE /pvs
 @app.route('/{}{}/pvs'.format(API_VERSION, SERVICE_PREFIX), methods=['DELETE'])
 @get_params
-def read_pv(tenant, username):
+def remove_pv(tenant, username, tag, tenant_name=None):
     try:
-        pv_name = 'pv-{}-{}'.format(tenant, username)
+        pv_name = 'pv-{}-{}-{}'.format(tenant, username, tag)
 
         pv = api_instance.delete_persistent_volume(pv_name)
 
-        return Resopnse()
+        return Response()
     except ApiException as e:
-        logger.error('Request Error: {}\nStack: {}\n'.format(e, trackback.format_exc()))
+        logger.error('Request Error: {}\nStack: {}\n'.format(e, traceback.format_exc()))
         return Response(
             json.dumps({'error': 'Kubernetes API request failed'}, indent=1, sort_keys=True),
             mimetype='application/json',
+            status=400
+        )
+    except Exception as e:
+        # this might be a bug
+        logger.critical('Program Error: {}\nStack: {}\n'.format(e, traceback.format_exc()))
+        return Response(
+            json.dumps(
+                {'error': 'Volume service failed.'},
+                indent=1,
+                sort_keys=True
+            ),
+            status=500,
+            mimetype='application/json'
         )
 
 # POST /pvcs
@@ -226,72 +274,115 @@ def create_pvc(body):
         pretty = 'true'
 
         pvc = api_instance.create_namespaced_persistent_volume_claim(
-            body.namespace,
+            body['metadata']['namespace'],
             body,
             include_uninitialized=include_uninitialized,
             pretty=pretty
-        )
+        ).to_dict()
 
-        return Resopnse(
-            json.dumps(pvc, indent=1, sort_keys=True),
+        return Response(
+            json.dumps(pvc, default=datetime_convertor, indent=1, sort_keys=True),
             mimetype='application/json'
         )
     except ApiException as e:
-        logger.error('Request Error: {}\nStack: {}\n'.format(e, trackback.format_exc()))
+        logger.error('Request Error: {}\nStack: {}\n'.format(e, traceback.format_exc()))
         return Response(
             json.dumps({'error': 'Kubernetes API request failed'}, indent=1, sort_keys=True),
             mimetype='application/json',
+            status=400
+        )
+    except Exception as e:
+        # this might be a bug
+        logger.critical('Program Error: {}\nStack: {}\n'.format(e, traceback.format_exc()))
+        return Response(
+            json.dumps(
+                {'error': 'Volume service failed.'},
+                indent=1,
+                sort_keys=True
+            ),
+            status=500,
+            mimetype='application/json'
         )
 
 # GET /pvcs
 @app.route('/{}{}/pvcs'.format(API_VERSION, SERVICE_PREFIX), methods=['GET'])
 @get_params
-def read_pv(tenant, username, tenant_name=''):
+def read_pvc(tenant, username, tag, tenant_name=''):
     try:
-        pvc_name = 'pvc-{}-{}'.format(tenant, username)
-        namespace = tenant_name
+        pvc_name = 'pvc-{}-{}-{}'.format(tenant, username, tag)
+        namespace = tenant
         pretty = 'true'
         exact = True
 
+        '''
         pvc = api_instance.read_namespaced_persistent_volume_claim(
             pvc_name,
+            namespace,
             pretty=pretty,
             exact=exact
         )
+        '''
 
         pvc_status = api_instance.read_namespaced_persistent_volume_claim_status(
             pvc_name,
             namespace,
             pretty=pretty
-        )
+        ).to_dict()
 
-        pvc['status'] = pvc_status
-
-        return Resopnse(
-            json.dumps(pvc, indent=1, sort_keys=True),
+        return Response(
+            json.dumps(pvc_status, default=datetime_convertor, indent=1, sort_keys=True),
             mimetype='application/json'
         )
     except ApiException as e:
-        logger.error('Request Error: {}\nStack: {}\n'.format(e, trackback.format_exc()))
+        logger.error('Request Error: {}\nStack: {}\n'.format(e, traceback.format_exc()))
         return Response(
             json.dumps({'error': 'Kubernetes API request failed'}, indent=1, sort_keys=True),
             mimetype='application/json',
+            status=400
+        )
+    except Exception as e:
+        # this might be a bug
+        logger.critical('Program Error: {}\nStack: {}\n'.format(e, traceback.format_exc()))
+        return Response(
+            json.dumps(
+                {'error': 'Volume service failed.'},
+                indent=1,
+                sort_keys=True
+            ),
+            status=500,
+            mimetype='application/json'
         )
 
-# DELETE /pvs
-@app.route('/{}{}/pvs'.format(API_VERSION, SERVICE_PREFIX), methods=['DELETE'])
+# DELETE /pvcs
+@app.route('/{}{}/pvcs'.format(API_VERSION, SERVICE_PREFIX), methods=['DELETE'])
 @get_params
-def read_pv(tenant, username, tenant_name=''):
+def remove_pvc(tenant, username, tag, tenant_name=''):
     try:
-        pvc_name = 'pvc-{}-{}'.format(tenant, username)
-        namespace = tenant_name
+        pvc_name = 'pvc-{}-{}-{}'.format(tenant, username, tag)
+        namespace = tenant
 
-        pvc = api_instance.delete_namespaced_persistent_volume_claim(pvc_name)
+        pvc = api_instance.delete_namespaced_persistent_volume_claim(
+            pvc_name,
+            namespace
+        )
 
-        return Resopnse()
+        return Response()
     except ApiException as e:
-        logger.error('Request Error: {}\nStack: {}\n'.format(e, trackback.format_exc()))
+        logger.error('Request Error: {}\nStack: {}\n'.format(e, traceback.format_exc()))
         return Response(
             json.dumps({'error': 'Kubernetes API request failed'}, indent=1, sort_keys=True),
             mimetype='application/json',
+            status=400
+        )
+    except Exception as e:
+        # this might be a bug
+        logger.critical('Program Error: {}\nStack: {}\n'.format(e, traceback.format_exc()))
+        return Response(
+            json.dumps(
+                {'error': 'Volume service failed.'},
+                indent=1,
+                sort_keys=True
+            ),
+            status=500,
+            mimetype='application/json'
         )

@@ -13,10 +13,10 @@ pvTemplate:
     "apiVersion": "v1",
     "kind": "PersistentVolume",
     "metadata": {
-        "name": "pv-{}-{}", // pv name template: "pv-{tenant_id}-{username}"
+        "name": "pv-{}-{}-{}", // pv name template: "pv-{tenant_id}-{username}-{tag}"
         "namespace": "{}", // pv namespace template: "{tenant_id}"
         "labels": {
-            "pv": "pv-{}-{}", // pv label template: "pv-{tenant_id}-{username}"
+            "pv": "pv-{}-{}-{}", // pv label template: "pv-{tenant_id}-{username}-{tag}"
         }
     },
     "spec": {
@@ -26,7 +26,7 @@ pvTemplate:
         },
         "nfs": {
             "server": "{}", // nfs server
-            "path": "{}{}-{}" // nfs path template: "{nfs-prefix}{tenant_id}-{username}"
+            "path": "{}{}-{}-{}" // nfs path template: "{nfs-prefix}{tenant_id}-{username}-{tag}"
         }
     }
 }
@@ -39,7 +39,7 @@ pvcTemplate:
     "apiVersion": "v1",
     "kind": "PersistentVolumeClaim",
     "metadata": {
-        "name": "pvc-{}-{}", // pv name template: "pv-{tenant_id}-{username}"
+        "name": "pvc-{}-{}-{}", // pv name template: "pv-{tenant_id}-{username}-{tag}"
         "namespace": "{}", // pv namespace template: "{tenant_id}"
     },
     "spec": {
@@ -51,7 +51,7 @@ pvcTemplate:
         },
         "selector": {
             "matchLabels": {
-                "pv": "pv-{}-{}" # pv name template: "pv-{tenant_id}-{username}"
+                "pv": "pv-{}-{}-{}" // pv name template: "pv-{tenant_id}-{username}-{tag}"
             }
         }
     }
