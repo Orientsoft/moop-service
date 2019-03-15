@@ -309,7 +309,7 @@ def remove_container():
         return Response(status=200)
     except requests.exceptions.RequestException as e:
         # there might be something wrong with jupyterhub or network
-        logger.error('222Request Error: {}\nStack: {}\n'.format(e, traceback.format_exc()))
+        logger.error('Request Error: {}\nStack: {}\n'.format(e, traceback.format_exc()))
         return Response(
             json.dumps(
                 {'error': 'Request to jupyterhub API failed.'},
