@@ -203,6 +203,8 @@ pvcInResponse:
 
 | method | path | query | request | response | remark |
 | ------ | ---- | ----- | ------- | -------- | ------ |
-| POST | /pvcs | | pvcInRequest | pvcInResponse | 创建PVC |
+| POST | /pvcs | | pvcInRequest | pvcInResponse | 创建PVC* |
 | GET | /pvcs | tenant, username, tag | | pvcInResponse | 查询指定PVC |
 | DELETE | /pvcs | tenant, username, tag | | | 删除指定PVC |
+
+**Do NOT rely on returned value of POST APIs, K8S may return null if the resource couldn't be created in time. **  
