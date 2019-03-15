@@ -1,7 +1,6 @@
 # volume-service
 
 K8s persistent volume management service, customized for MOOP API Server.  
-
 ## tenant resources
 
 Save pv and pvc templates in tenant resources.templates field:  
@@ -58,6 +57,10 @@ pvcTemplate:
 }
 ```
 
+## K8S namespace
+
+**After creating tenant, please create a k8s namespace with tenant.id.**  
+
 ## envs
 
 default ```env.sh```:  
@@ -85,7 +88,8 @@ pvInRequest:
 ```js
 {
     "tenant": ObjectID, // tenant id
-    "username": String, // username
+    "username": String, // username,
+    "tag": String // pv tag, could be undefined
 }
 ```
 
@@ -148,8 +152,8 @@ pvInResponse (sample):
 | method | path | query | request | response | remark |
 | ------ | ---- | ----- | ------- | -------- | ------ |
 | POST | /pvs | | pvInRequest | pvInResponse | 创建PV |
-| GET | /pvs | tenant, username | | pvInResponse | 查询指定PV |
-| DELETE | /pvs | | pvInRequest | | 删除指定PV |
+| GET | /pvs | tenant, username, tag | | pvInResponse | 查询指定PV |
+| DELETE | /pvs | tenant, username, tag | | | 删除指定PV |
 
 ### pvc
 
@@ -158,7 +162,8 @@ pvcInRequest:
 ```js
 {
     "tenant": ObjectID, // tenant id
-    "username": String // username
+    "username": String, // username
+    "tag": String // pvc tag, could be undefined
 }
 ```
 
@@ -199,5 +204,5 @@ pvcInResponse:
 | method | path | query | request | response | remark |
 | ------ | ---- | ----- | ------- | -------- | ------ |
 | POST | /pvcs | | pvcInRequest | pvcInResponse | 创建PVC |
-| GET | /pvcs | tenant, username | | pvcInResponse | 查询指定PVC |
-| DELETE | /pvcs | tenant, username | | | 删除指定PVC |
+| GET | /pvcs | tenant, username, tag | | pvcInResponse | 查询指定PVC |
+| DELETE | /pvcs | tenant, username, tag | | | 删除指定PVC |
