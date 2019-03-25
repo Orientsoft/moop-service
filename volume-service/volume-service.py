@@ -166,7 +166,7 @@ def create_pv(body):
         )
 
         return Response(
-            json.dumps(pv, default=datetime_convertor, indent=1, sort_keys=True),
+            json.dumps(pv.to_dict(), default=datetime_convertor, indent=1, sort_keys=True),
             mimetype='application/json'
         )
     except ApiException as e:
@@ -209,10 +209,10 @@ def read_pv(tenant, username, tag, tenant_name=None):
         pv_status = api_instance.read_persistent_volume_status(
             pv_name,
             pretty=pretty
-        ).to_dict()
+        )
 
         return Response(
-            json.dumps(pv_status, default=datetime_convertor, indent=1, sort_keys=True),
+            json.dumps(pv_status.to_dict(), default=datetime_convertor, indent=1, sort_keys=True),
             mimetype='application/json'
         )
     except ApiException as e:

@@ -26,7 +26,7 @@ SERVICE_PREFIX = '/pods'
 API_VERSION = 'service/v1'
 
 # logger
-LOG_NAME = 'Volume-Service'
+LOG_NAME = 'Pod-Service'
 LOG_FORMAT = '%(asctime)s - %(filename)s:%(lineno)s - %(name)s:%(funcName)s - [%(levelname)s] %(message)s'
 
 def setup_logger(level):
