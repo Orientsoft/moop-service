@@ -307,7 +307,7 @@ def create_pvc(body):
 # GET /pvcs
 @app.route('/{}{}/pvcs'.format(API_VERSION, SERVICE_PREFIX), methods=['GET'])
 @get_params
-def read_pvc(tenant, username, tag, namspace=''):
+def read_pvc(tenant, username, tag, namespace=''):
     try:
         pvc_name = 'pvc-{}-{}-{}'.format(tenant, username, tag)
         pretty = 'true'
