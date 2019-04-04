@@ -73,6 +73,7 @@ def create_body(f):
                 mimetype='application/json',
             )
         tag = req_body['tag'] if 'tag' in req_body.keys() else 'default'
+        match = req_body['match'] if 'match' in req_body.keys() else False
 
         # read templates from tenant service
         tenant_resp = requests.get('{}/{}'.format(TENANT_SERVICE_URL, req_body['tenant']))
@@ -84,6 +85,7 @@ def create_body(f):
             )
 
         tenant = tenant_resp.json()
+        namespace = tenant['namespace']
         templates = tenant['resources']['templates']
 
         # get request resource type
@@ -95,16 +97,22 @@ def create_body(f):
             body = templates['pv']
 
             body['metadata']['name'] = body['metadata']['name'].format(req_body['tenant'], req_body['username'], tag)
-            body['metadata']['namespace'] = body['metadata']['namespace'].format(req_body['tenant'])
+            body['metadata']['namespace'] = namespace
             body['metadata']['labels']['pv'] = body['metadata']['labels']['pv'].format(req_body['tenant'], req_body['username'], tag)
             body['spec']['nfs']['server'] = body['spec']['nfs']['server'].format(NFS_SERVER)
             body['spec']['nfs']['path'] = body['spec']['nfs']['path'].format(NFS_PREFIX, req_body['tenant'], req_body['username'], tag)
         else:
-            body = templates['pvc']
+            if match:
+                body = templates['match_pvc']
 
-            body['metadata']['name'] = body['metadata']['name'].format(req_body['tenant'], req_body['username'], tag)
-            body['metadata']['namespace'] = body['metadata']['namespace'].format(req_body['tenant'])
-            body['spec']['selector']['matchLabels']['pv'] = body['spec']['selector']['matchLabels']['pv'].format(req_body['tenant'], req_body['username'], tag)
+                body['metadata']['name'] = body['metadata']['name'].format(req_body['tenant'], req_body['username'], tag)
+                body['metadata']['namespace'] = namespace
+                body['spec']['selector']['matchLabels']['pv'] = body['spec']['selector']['matchLabels']['pv'].format(req_body['tenant'], req_body['username'], tag)
+            else:
+                body = templates['pvc']
+
+                body['metadata']['name'] = body['metadata']['name'].format(req_body['tenant'], req_body['username'], tag)
+                body['metadata']['namespace'] = namespace
 
         return f(
             body,
@@ -145,7 +153,7 @@ def get_params(f):
             params['username'],
             tag,
             *args,
-            tenant_name=tenant_resp.json()['name'],
+            namespace=tenant_resp.json()['namespace'],
             **kwargs
         )
 
@@ -163,10 +171,10 @@ def create_pv(body):
             body,
             include_uninitialized=include_uninitialized,
             pretty=pretty
-        )
+        ).to_dict()
 
         return Response(
-            json.dumps(pv.to_dict(), default=datetime_convertor, indent=1, sort_keys=True),
+            json.dumps(pv, default=datetime_convertor, indent=1, sort_keys=True),
             mimetype='application/json'
         )
     except ApiException as e:
@@ -192,27 +200,19 @@ def create_pv(body):
 # GET /pvs
 @app.route('/{}{}/pvs'.format(API_VERSION, SERVICE_PREFIX), methods=['GET'])
 @get_params
-def read_pv(tenant, username, tag, tenant_name=None):
+def read_pv(tenant, username, tag, namespace=''):
     try:
         pv_name = 'pv-{}-{}-{}'.format(tenant, username, tag)
         pretty = 'true'
         exact = True
 
-        ''' pv_status contains pv
-        pv = api_instance.read_persistent_volume(
-            pv_name,
-            pretty=pretty,
-            exact=exact
-        ).to_dict()
-        '''
-
         pv_status = api_instance.read_persistent_volume_status(
             pv_name,
             pretty=pretty
-        )
+        ).to_dict()
 
         return Response(
-            json.dumps(pv_status.to_dict(), default=datetime_convertor, indent=1, sort_keys=True),
+            json.dumps(pv_status, default=datetime_convertor, indent=1, sort_keys=True),
             mimetype='application/json'
         )
     except ApiException as e:
@@ -238,7 +238,7 @@ def read_pv(tenant, username, tag, tenant_name=None):
 # DELETE /pvs
 @app.route('/{}{}/pvs'.format(API_VERSION, SERVICE_PREFIX), methods=['DELETE'])
 @get_params
-def remove_pv(tenant, username, tag, tenant_name=None):
+def remove_pv(tenant, username, tag, namespace=''):
     try:
         pv_name = 'pv-{}-{}-{}'.format(tenant, username, tag)
 
@@ -307,21 +307,11 @@ def create_pvc(body):
 # GET /pvcs
 @app.route('/{}{}/pvcs'.format(API_VERSION, SERVICE_PREFIX), methods=['GET'])
 @get_params
-def read_pvc(tenant, username, tag, tenant_name=''):
+def read_pvc(tenant, username, tag, namspace=''):
     try:
         pvc_name = 'pvc-{}-{}-{}'.format(tenant, username, tag)
-        namespace = tenant
         pretty = 'true'
         exact = True
-
-        '''
-        pvc = api_instance.read_namespaced_persistent_volume_claim(
-            pvc_name,
-            namespace,
-            pretty=pretty,
-            exact=exact
-        )
-        '''
 
         pvc_status = api_instance.read_namespaced_persistent_volume_claim_status(
             pvc_name,
@@ -356,10 +346,9 @@ def read_pvc(tenant, username, tag, tenant_name=''):
 # DELETE /pvcs
 @app.route('/{}{}/pvcs'.format(API_VERSION, SERVICE_PREFIX), methods=['DELETE'])
 @get_params
-def remove_pvc(tenant, username, tag, tenant_name=''):
+def remove_pvc(tenant, username, tag, namespace=''):
     try:
         pvc_name = 'pvc-{}-{}-{}'.format(tenant, username, tag)
-        namespace = tenant
 
         pvc = api_instance.delete_namespaced_persistent_volume_claim(
             pvc_name,

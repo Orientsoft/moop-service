@@ -31,15 +31,15 @@ pvTemplate:
 }
 ```
 
-pvcTemplate:  
+matchPvcTemplate, this pvc contains a matchLabels field to match pv:  
 
 ```js
 {
     "apiVersion": "v1",
     "kind": "PersistentVolumeClaim",
     "metadata": {
-        "name": "pvc-{}-{}-{}", // pv name template: "pv-{tenant_id}-{username}-{tag}"
-        "namespace": "{}", // pv namespace template: "{tenant_id}"
+        "name": "pvc-{}-{}-{}", // pvc name template: "pvc-{tenant_id}-{username}-{tag}"
+        "namespace": "{}", // pvc namespace template: "{namespace}"
     },
     "spec": {
         "accessModes": ["ReadWriteMany"],
@@ -53,6 +53,28 @@ pvcTemplate:
                 "pv": "pv-{}-{}-{}" // pv name template: "pv-{tenant_id}-{username}-{tag}"
             }
         }
+    }
+}
+```
+
+pvcTemplate:
+
+```js
+{
+    "apiVersion": "v1",
+    "kind": "PersistentVolumeClaim",
+    "metadata": {
+        "name": "pvc-{}-{}-{}", // pvc name template: "pvc-{tenant_id}-{useranme}-{tag}"
+        "namespace": "{}", // pvc namespace template: "{namespace}"
+    },
+    "spec": {
+        "accessModes": ["ReadWriteMany"],
+        "storageClassName": "standard",
+        "resources": {
+            "requests": {
+                "storage": "100Mi"
+            }
+        },
     }
 }
 ```
@@ -91,7 +113,7 @@ pvInRequest:
 {
     "tenant": ObjectID, // tenant id
     "username": String, // username,
-    "tag": String // pv tag, could be undefined
+    "tag": String, // pv tag, optional, defaults to 'default'
 }
 ```
 
@@ -165,7 +187,8 @@ pvcInRequest:
 {
     "tenant": ObjectID, // tenant id
     "username": String, // username
-    "tag": String // pvc tag, could be undefined
+    "tag": String, // pvc tag, optional, defaults to 'default'
+    "match": Boolean // create match pvc - a matchLabel field will be created to match pv, optional, defaults to False
 }
 ```
 
