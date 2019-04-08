@@ -128,10 +128,9 @@ def launch(image, username, server_name='', volumes=None, volume_mounts=None):
         if server_name == '':
             user_data = request_api(session, 'users/{}'.format(username)).json()
             
-            if user_data['status'] == 404:
+            if 'status' in user_data and user_data['status'] == 404:
                 new_user = request_api(session, 'users/{}'.format(username), method='post').json()
-            elif 'servers' in user_data.keys():
-                if server_name in user_data['servers'].keys():
+            elif 'servers' in user_data.keys() and server_name in user_data['servers'].keys():
                     return Response(
                         json.dumps(
                             {'error': '{} already has a running server'.format(username)},
