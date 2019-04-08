@@ -84,6 +84,7 @@ def create_body(f):
 
         tenant = tenant_resp.json()
         templates = tenant['resources']['templates']
+        namespace = tenant['namespace']
 
         # create body
         body = templates['pod']
@@ -122,6 +123,45 @@ def create_body(f):
             body,
             req_body,
             *args,
+            namespace=namespace,
+            **kwargs
+        )
+
+    return decorated
+
+def get_params(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        # parameters
+        req_body = request.args.to_dict()
+
+        if 'tenant' not in req_body.keys():
+            return Response(
+                json.dumps({'error': 'no tenant parameter specified'}, indent=1, sort_keys=True),
+                mimetype='application/json',
+            )
+        if 'name' not in req_body.keys():
+            return Response(
+                json.dumps({'error': 'no name parameter specified'}, indent=1, sort_keys=True),
+                mimetype='application/json',
+            )
+
+        # read templates from tenant service
+        tenant_resp = requests.get('{}/{}'.format(TENANT_SERVICE_URL, req_body['tenant']))
+        if tenant_resp.status_code != 200:
+            logger.error('Request Error: {}\nStack: {}\n'.format(tenant_resp.json(), traceback.format_exc()))
+            return Response(
+                json.dumps({'error': 'tenant service returned failure'}, indent=1, sort_keys=True),
+                mimetype='application/json',
+            )
+
+        tenant = tenant_resp.json()
+        namespace = tenant['namespace']
+
+        return f(
+            req_body,
+            *args,
+            namespace=namespace,
             **kwargs
         )
 
@@ -130,17 +170,16 @@ def create_body(f):
 # POST /pods
 @app.route('/{}{}'.format(API_VERSION, SERVICE_PREFIX), methods=['POST'])
 @create_body
-def create_pod(body, req_body):
-    print(body)
+def create_pod(body, req_body, namespace=''):
     try:
         pod = api_instance.create_namespaced_pod(
             body=body,
-            namespace=req_body['tenant']
-        )
+            namespace=namespace
+        ).to_dict()
 
         return Response(
             json.dumps(
-                pod.to_dict(),
+                pod,
                 default=datetime_convertor,
                 indent=1,
                 sort_keys=True
@@ -169,30 +208,17 @@ def create_pod(body, req_body):
 
 # GET /pods
 @app.route('/{}{}'.format(API_VERSION, SERVICE_PREFIX), methods=['GET'])
-def read_pod():
+@get_params
+def read_pod(req_body, namespace=''):
     try:
-        # parameters
-        req_body = request.args.to_dict()
-
-        if 'tenant' not in req_body.keys():
-            return Response(
-                json.dumps({'error': 'no tenant parameter specified'}, indent=1, sort_keys=True),
-                mimetype='application/json',
-            )
-        if 'name' not in req_body.keys():
-            return Response(
-                json.dumps({'error': 'no name parameter specified'}, indent=1, sort_keys=True),
-                mimetype='application/json',
-            )
-        
         pod = api_instance.read_namespaced_pod(
             name=req_body['name'],
-            namespace=req_body['tenant']
-        )
+            namespace=namespace
+        ).to_dict()
 
         return Response(
             json.dumps(
-                pod.to_dict(),
+                pod,
                 default=datetime_convertor,
                 indent=1,
                 sort_keys=True
@@ -221,30 +247,17 @@ def read_pod():
 
 # DELETE /pods
 @app.route('/{}{}'.format(API_VERSION, SERVICE_PREFIX), methods=['DELETE'])
-def remove_pod():
+@get_params
+def remove_pod(req_body, namespace=''):
     try:
-        # parameters
-        req_body = request.args.to_dict()
-
-        if 'tenant' not in req_body.keys():
-            return Response(
-                json.dumps({'error': 'no tenant parameter specified'}, indent=1, sort_keys=True),
-                mimetype='application/json',
-            )
-        if 'name' not in req_body.keys():
-            return Response(
-                json.dumps({'error': 'no name parameter specified'}, indent=1, sort_keys=True),
-                mimetype='application/json',
-            )
-        
         pod = api_instance.delete_namespaced_pod(
             name=req_body['name'],
-            namespace=req_body['tenant']
-        )
+            namespace=namespace
+        ).to_dict()
 
         return Response(
             json.dumps(
-                pod.to_dict(),
+                pod,
                 default=datetime_convertor,
                 indent=1,
                 sort_keys=True
