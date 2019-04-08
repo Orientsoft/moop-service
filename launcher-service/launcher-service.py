@@ -81,7 +81,8 @@ def request_api(session, url, *args, method='get', **kwargs):
             **kwargs
         )
 
-    resp.raise_for_status()
+    if (method == 'get') and (resp.status_code != 404): # allow GET 404
+        resp.raise_for_status()
 
     return resp
 
@@ -126,17 +127,20 @@ def launch(image, username, server_name='', volumes=None, volume_mounts=None):
         # just check if the user has a running server ''
         if server_name == '':
             user_data = request_api(session, 'users/{}'.format(username)).json()
-
-            if server_name in user_data['servers'].keys():
-                return Response(
-                    json.dumps(
-                        {'error': '{} already has a running server'.format(username)},
-                        indent=1,
-                        sort_keys=True
-                    ),
-                    status=400,
-                    mimetype='application/json'
-                )
+            
+            if user_data['status'] == 404:
+                new_user = request_api(session, 'users/{}'.format(username), method='post').json()
+            elif 'servers' in user_data.keys():
+                if server_name in user_data['servers'].keys():
+                    return Response(
+                        json.dumps(
+                            {'error': '{} already has a running server'.format(username)},
+                            indent=1,
+                            sort_keys=True
+                        ),
+                        status=400,
+                        mimetype='application/json'
+                    )
 
         user_token_resp = request_api(
             session,
@@ -147,6 +151,7 @@ def launch(image, username, server_name='', volumes=None, volume_mounts=None):
                 'expires_in': user_token_lifetime
             }
         ).json()
+        print(user_token_resp)
         user_token = user_token_resp['token']
         
         data = {
