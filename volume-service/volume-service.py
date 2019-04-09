@@ -278,6 +278,7 @@ def create_pvc(body):
         include_uninitialized = True
         pretty = 'true'
 
+        print(body)
         pvc = api_instance.create_namespaced_persistent_volume_claim(
             body['metadata']['namespace'],
             body,

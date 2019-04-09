@@ -43,6 +43,7 @@ matchPvcTemplate, this pvc contains a matchLabels field to match pv:
     },
     "spec": {
         "accessModes": ["ReadWriteMany"],
+        "storageClassName": "",
         "resources": {
             "requests": {
                 "storage": "100Mi"
