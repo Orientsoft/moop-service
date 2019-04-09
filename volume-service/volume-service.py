@@ -62,6 +62,10 @@ def create_body(f):
         # parameters
         req_body = request.get_json()
 
+        # get request resource type
+        url_array = request.url.strip('/').split('/')
+        resource_type = url_array[-1]
+
         if 'tenant' not in req_body.keys():
             return Response(
                 json.dumps({'error': 'no tenant parameter specified'}, indent=1, sort_keys=True),
@@ -70,6 +74,11 @@ def create_body(f):
         if 'username' not in req_body.keys():
             return Response(
                 json.dumps({'error': 'no username parameter specified'}, indent=1, sort_keys=True),
+                mimetype='application/json',
+            )
+        if 'path' not in req_body.keys() and resource_type == 'pvs':
+            return Response(
+                json.dumps({'error': 'no path parameter specified for pv'}, indent=1, sort_keys=True),
                 mimetype='application/json',
             )
         tag = req_body['tag'] if 'tag' in req_body.keys() else 'default'
@@ -88,10 +97,6 @@ def create_body(f):
         namespace = tenant['namespace']
         templates = tenant['resources']['templates']
 
-        # get request resource type
-        url_array = request.url.strip('/').split('/')
-        resource_type = url_array[-1]
-
         # create body
         if resource_type == 'pvs':
             body = templates['pv']
@@ -100,7 +105,7 @@ def create_body(f):
             body['metadata']['namespace'] = namespace
             body['metadata']['labels']['pv'] = body['metadata']['labels']['pv'].format(req_body['tenant'], req_body['username'], tag)
             body['spec']['nfs']['server'] = body['spec']['nfs']['server'].format(NFS_SERVER)
-            body['spec']['nfs']['path'] = body['spec']['nfs']['path'].format(NFS_PREFIX, req_body['tenant'], req_body['username'], tag)
+            body['spec']['nfs']['path'] = body['spec']['nfs']['path'].format(NFS_PREFIX, req_body['path'])
         else:
             if match:
                 body = templates['match_pvc']

@@ -25,7 +25,7 @@ pvTemplate:
         },
         "nfs": {
             "server": "{}", // nfs server
-            "path": "{}{}-{}-{}" // nfs path template: "{nfs-prefix}{tenant_id}-{username}-{tag}"
+            "path": "{}{}" // nfs path template: "{nfs-prefix}{path}"
         }
     }
 }
@@ -113,7 +113,8 @@ pvInRequest:
 {
     "tenant": ObjectID, // tenant id
     "username": String, // username,
-    "tag": String, // pv tag, optional, defaults to 'default'
+    "tag": String, // pv tag, optional, defaults to 'default',
+    "path": String, // pv path
 }
 ```
 
