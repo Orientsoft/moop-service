@@ -6,6 +6,7 @@ import time
 import logging
 import logging.handlers
 import sys
+import uuid
 
 import requests
 from flask import Flask, redirect, request, Response
@@ -102,8 +103,29 @@ def get_launch_params(f):
                 mimetype='application/json',
             )
         server_name = body['server_name'] if 'server_name' in body.keys() else ''
-        volumes = body['volumes'] if 'volumes' in body.keys() else None
-        volume_mounts = body['volume_mounts'] if 'volume_mounts' in body.keys() else None
+
+        if 'vols' in body.keys():
+            vols = body['vols']
+
+            vol_names = [str(uuid.uuid4()) for vol in vols]
+            volumes = []
+            volume_mounts = []
+
+            for i, vol in enumerate(vols):
+                volumes.append({
+                    'name': vol_names[i],
+                    'persistentVolumeClaim': {
+                        'claimName': vol['pvc']
+                    }
+                })
+
+                volume_mounts.append({
+                    'name': vol_names[i],
+                    'mountPath': vol['mount']
+                })
+        else:
+            volumes = None
+            volume_mounts = None
 
         return f(
             body['image'],

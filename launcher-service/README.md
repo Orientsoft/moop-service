@@ -92,16 +92,10 @@ Submit run-time parameters in request.body - **image, username, server_name and 
 {
     "image": "jupyter/base-notebook:latest",
     "username": "voyager",
-    "volume_mounts": [
+    "vols": [
         {
-            "name": "test-nfs-pv",
-            "mountPath": "/home/jovyan/test"
-        }
-    ],
-    "volumes": [
-        {
-            "name": "test-nfs-pv",
-            "persistentVolumeClaim": {"claimName": "test-nfs-pvc"}
+            "pvc": String, // PVC name
+            "mount": String, // mount point
         }
     ]
 }
@@ -120,18 +114,10 @@ If container starts successfully, notebook endpoint url and other info will be r
     "token": "be6ac9cb7581421da30d6a16339eaf91",
     "url": "http://192.168.0.31:30711/user/voyager/", // endpoint url
     "username": "voyager",
-    "volume_mounts": [
+    "vols": [
         {
-            "mountPath": "/home/jovyan/test",
-            "name": "test-nfs-pv"
-        }
-    ],
-    "volumes": [
-        {
-            "name": "test-nfs-pv",
-            "persistentVolumeClaim": {
-                "claimName": "test-nfs-pvc"
-            }
+            "pvc": String, // PVC name
+            "mount": String, // mount point
         }
     ]
 }
